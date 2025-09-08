@@ -72,9 +72,10 @@ public class Client
             hiMsgArray.Add(hiMsg);
             await SendArray(hiMsgArray).ConfigureAwait(false);
             
-            while (!_ws.CloseStatus.HasValue)
+            while (true)
             {
                 var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None).ConfigureAwait(false);
+                if (_ws.CloseStatus.HasValue) break;
                 
                 try
                 {

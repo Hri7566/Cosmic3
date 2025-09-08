@@ -4,6 +4,8 @@ namespace Cosmic3;
 
 public static class Cosmic
 {
+    public static readonly long StartTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+    
     public static void Initialize()
     {
         CommandHandler.Populate();

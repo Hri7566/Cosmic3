@@ -75,13 +75,16 @@ public static class CommandHandler
                     foreach (var commandGroup in CommandGroups)
                     {
                         List<string> commandList = [];
+                        commandList.AddRange(
+                            from command in commandGroup.Commands
+                                where command.Visible
+                                select $"`{prefixText}{command.Aliases[0]}`"
+                            );
+                        
+                        var list = string.Join(" | ", commandList);
+                        if (list == "") list = "(none)";
 
-                        foreach (var command in commandGroup.Commands)
-                        {
-                            commandList.Add($"`{prefixText}{command.Aliases[0]}`");
-                        }
-
-                        commandGroupList.Add(commandGroup.Name + ": " + string.Join(" | ", commandList));
+                        commandGroupList.Add(commandGroup.Name + ": " + list);
                     }
 
                     return string.Join("\n", commandGroupList);
@@ -105,10 +108,14 @@ public static class CommandHandler
             ["about", "info"],
             "Show information about the bot",
             "about",
-            ctx => "🌌 This bot was made by `@hri7566`."
+            ctx => "🌌 This bot was made by `@hri7566`. 💾 Source code: https://github.com/Hri7566/Cosmic3"
         ));
         
         CommandGroups.Add(general);
+
+        CommandGroup items = new CommandGroup("items", "🎁 Items");
+        
+        CommandGroups.Add(items);
 
         CommandGroup baking = new CommandGroup("baking", "🍰 Baking");
         
@@ -130,7 +137,16 @@ public static class CommandHandler
 
         var util = new CommandGroup("util", "⚙️ Utility");
         
-        
+        util.Add(new Command(
+            ["uptime"],
+            "Get bot uptime",
+            "uptime",
+            ctx =>
+            {
+                var uptime = DateTimeOffset.Now.ToUnixTimeSeconds() - Cosmic.StartTime;
+                return $"Uptime: {uptime} seconds";
+            }
+        ));
         
         CommandGroups.Add(util);
     }
