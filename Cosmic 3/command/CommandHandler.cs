@@ -1,4 +1,7 @@
-﻿namespace Cosmic3.command;
+﻿using Cosmic3.oven;
+using Cosmic3.util;
+
+namespace Cosmic3.command;
 
 public static class CommandHandler
 {
@@ -47,10 +50,13 @@ public static class CommandHandler
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
-            return "An error has occurred...\n" + e.Message + e.StackTrace;
+            return "An error has occurred: " + e.Message + "\n" + e.StackTrace;
         }
     }
 
+    /// <summary>
+    /// Populate the command handler with initial data
+    /// </summary>
     public static void Populate()
     {
         Prefixes.Add(new Prefix("*", false));
@@ -123,15 +129,21 @@ public static class CommandHandler
             ["bake", "startbake", "startbaking"],
             "Start baking a cake",
             "bake",
-            ctx => "work in progress no oven yet"
-        ));
+            ctx =>
+            {
+                Oven.StartBaking();
+                return "WIP no oven yet";
+            }));
         
         baking.Add(new Command(
             ["stopbaking", "stopbake", "stop"],
             "Start baking a cake",
             "bake",
-            ctx => "work in progress no oven yet"
-        ));
+            ctx =>
+            {
+                Oven.StopBaking();
+                return "WIP no oven yet";
+            }));
         
         CommandGroups.Add(baking);
 
@@ -139,13 +151,24 @@ public static class CommandHandler
         
         util.Add(new Command(
             ["uptime"],
-            "Get bot uptime",
+            "Get the bot's uptime",
             "uptime",
             ctx =>
             {
                 var uptime = DateTimeOffset.Now.ToUnixTimeSeconds() - Cosmic.StartTime;
-                return $"Uptime: {uptime} seconds";
+                return $"Uptime: {Format.Time(uptime)}";
             }
+        ));
+        
+        util.Add(new Command(
+            ["data"],
+            "Get your user data",
+            "data",
+            ctx =>
+            {
+                return "potato";
+            },
+            false
         ));
         
         CommandGroups.Add(util);

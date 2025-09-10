@@ -63,6 +63,8 @@ cl.On("a", async void (msg) =>
     }
 });
 
+var lastConnected = "";
+
 cl.On("ch", async void (msg) =>
 {
     try
@@ -70,7 +72,8 @@ cl.On("ch", async void (msg) =>
         var id = msg["ch"]?["_id"]?.ToString();
         if (id == null) return;
         
-        Console.WriteLine("Connected to channel " + id);
+        if (lastConnected != id)Console.WriteLine("Connected to channel " + id);
+        lastConnected = id;
         //await cl.SendChat("test").ConfigureAwait(false);
     }
     catch (Exception e)

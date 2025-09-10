@@ -149,6 +149,7 @@ public class Client
 
     public async Task SendArray(JArray messages)
     {
+        if (!IsConnected()) return;
         var data = messages.ToString();
         var bytes = Encoding.UTF8.GetBytes(data);
         await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
