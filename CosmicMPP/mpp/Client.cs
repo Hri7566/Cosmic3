@@ -164,7 +164,7 @@ public class Client
         }]).ConfigureAwait(false);
     }
 
-    public async Task SendChat(string message)
+    public async Task SendChat(string? message)
     {
         var lines = message.Split('\n');
 

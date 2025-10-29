@@ -1,4 +1,6 @@
-﻿using Cosmic3.oven;
+﻿using Cosmic3.data;
+using Cosmic3.data.models;
+using Cosmic3.oven;
 using Cosmic3.util;
 
 namespace Cosmic3.command;
@@ -11,21 +13,35 @@ public static class CommandHandler
     /// <summary>
     /// Find the correct chat command and run its callback, then return its resulting chat message as a string.
     /// </summary>
+    /// <param name="p">User's participant data</param>
     /// <param name="text">User's chat message to parse</param>
     /// <returns>Output of the command</returns>
-    public static string? HandleCommand(string text)
+    public static async Task<string?> HandleCommand(Participant p, string text)
     {
+        var platformId = Cosmic.platform + "." + p.Id;
         var args = text.Split(' ');
         
         // Find prefix that was used
-        var usedPrefix = (from p in Prefixes
-                where args[0].StartsWith(p.Text)
-                select p).FirstOrDefault();
+        var usedPrefix = (from pre in Prefixes
+                where args[0].StartsWith(pre.Text)
+                select pre).FirstOrDefault();
         
         if (usedPrefix == null) return null;
 
-        // Strip prefix off first arg to get command to potentially run
-        var usedAlias = args[0].Substring(usedPrefix.Text.Length,  args[0].Length - usedPrefix.Text.Length).Trim();
+        string usedAlias;
+        
+        if (!usedPrefix.Spaced)
+        {
+            // If prefix is not spaced, strip prefix off first arg to get command to potentially run
+            usedAlias = args[0].Substring(usedPrefix.Text.Length, args[0].Length - usedPrefix.Text.Length).Trim();
+        }
+        else
+        {
+            // Otherwise, skip the first argument entirely
+            args = args.Skip(1).ToArray();
+            usedAlias = args[0];
+        }
+
         Command? foundCommand = null;
 
         // Find the supposed command
@@ -39,13 +55,34 @@ public static class CommandHandler
         }
 
         if (foundCommand == null) return null;
+
+        // Get/create user data
+        var user = await User.Read(platformId);
+
+        if (user == null)
+        {
+            user = new User()
+            {
+                Name = p.Name,
+                PlatformId = platformId,
+                Color = p.Color
+            };
+            
+            await User.Create(user);
+        }
+
+        user.Name = p.Name;
+        user.Color = p.Color;
         
-        var ctx = new CommandContext(args, usedAlias, usedPrefix);
+        // Create context object to be passed to command
+        var ctx = new CommandContext(args, usedAlias, usedPrefix, user);
 
         try
         {
             // Run the command
-            return foundCommand.Callback(ctx);
+            var output = await foundCommand.Callback(ctx);
+            await User.Update(user);
+            return output;
         }
         catch (Exception e)
         {
@@ -68,7 +105,7 @@ public static class CommandHandler
             ["help", "h", "commands", "cmds", "cmd"], 
             "List or get info about commands", 
             "help [command]",
-            ctx =>
+            async ctx =>
             {
                 var prefixText = ctx.UsedPrefix.Text;
                 if (ctx.UsedPrefix.Spaced) prefixText += " ";
@@ -114,7 +151,7 @@ public static class CommandHandler
             ["about", "info"],
             "Show information about the bot",
             "about",
-            ctx => "🌌 This bot was made by `@hri7566`. 💾 Source code: https://github.com/Hri7566/Cosmic3"
+            async ctx => "🌌 This bot was made by `@hri7566`. 💾 Source code: https://github.com/Hri7566/Cosmic3"
         ));
         
         CommandGroups.Add(general);
@@ -122,6 +159,16 @@ public static class CommandHandler
         CommandGroup items = new CommandGroup("items", "🎁 Items");
         
         CommandGroups.Add(items);
+        
+        items.Add(new Command(
+            ["inventory", "inv", "items", "item", "i", "bal"],
+            "View your inventory",
+            "inventory",
+            async ctx =>
+            {
+                var inventory = await Inventory.Pick(ctx.user);
+                return inventory == null ? "No inventory available." : $"Balance: {Stringify.Balance(inventory.Balance)} | Items: {Stringify.Inventory(inventory)}";
+            }));
 
         CommandGroup baking = new CommandGroup("baking", "🍰 Baking");
         
@@ -129,7 +176,7 @@ public static class CommandHandler
             ["bake", "startbake", "startbaking"],
             "Start baking a cake",
             "bake",
-            ctx =>
+            async ctx =>
             {
                 Oven.StartBaking();
                 return "WIP no oven yet";
@@ -139,7 +186,7 @@ public static class CommandHandler
             ["stopbaking", "stopbake", "stop"],
             "Start baking a cake",
             "bake",
-            ctx =>
+            async ctx =>
             {
                 Oven.StopBaking();
                 return "WIP no oven yet";
@@ -153,10 +200,10 @@ public static class CommandHandler
             ["uptime"],
             "Get the bot's uptime",
             "uptime",
-            ctx =>
+            async ctx =>
             {
                 var uptime = DateTimeOffset.Now.ToUnixTimeSeconds() - Cosmic.StartTime;
-                return $"Uptime: {Format.Time(uptime)}";
+                return $"Uptime: {Stringify.Time(uptime)}";
             }
         ));
         
@@ -164,10 +211,12 @@ public static class CommandHandler
             ["data"],
             "Get your user data",
             "data",
-            ctx =>
-            {
-                return "potato";
-            },
+            async ctx => "User data: " +
+                   "Username: " + ctx.user.Name + " | " +
+                   "User ID: " + ctx.user.UserId + " | " +
+                   "Platform ID: " + ctx.user.PlatformId + " | " +
+                   "Color: " + ctx.user.Color + " | " +
+                   "Inventory ID: " + ctx.user.Inventory.InventoryId,
             false
         ));
         

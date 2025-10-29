@@ -2,11 +2,12 @@
 
 using System.Text;
 using Cosmic3;
+using Cosmic3.data;
 using CosmicMPP.mpp;
 using Newtonsoft.Json.Linq;
 
 Console.OutputEncoding = Encoding.UTF8;
-Cosmic.Initialize();
+Cosmic.Initialize("mppn");
 
 var cl = new Client(new Uri("wss://mppclone.com"), Environment.GetEnvironmentVariable("MPPNET_TOKEN"));
 
@@ -15,6 +16,8 @@ var user = new JObject()
     ["name"] = "Cosmic",
     ["color"] = "#1d0054"
 };
+
+var cursor = new Cursor(cl);
 
 cl.On("hi", async void (msg) =>
 {
@@ -32,6 +35,10 @@ cl.On("hi", async void (msg) =>
         }
 
         await cl.SetChannel("cheez").ConfigureAwait(false);
+        
+        // don't await
+        cursor.StartUpdate();
+        cursor.StartAnimation();
     }
     catch (Exception e)
     {
@@ -45,17 +52,25 @@ cl.On("a", async void (msg) =>
     {
         var message = msg["a"]?.ToString();
         var id = msg["p"]?["id"]?.ToString();
-        var name =  msg["p"]?["name"]?.ToString();
+        var name = msg["p"]?["name"]?.ToString();
+        var color = msg["p"]?["color"]?.ToString();
         
         if (message == null) return;
         if (id == null) return;
-        if  (name == null) return;
-        
+        if (name == null) return;
+        if (color == null) return;
+
         Console.WriteLine($"{id[..6]} {name} {message}");
-        
-        var output = Cosmic.RunCommand(message);
-        if (output == null) return;
-        await cl.SendChat(output).ConfigureAwait(false);
+
+        var p = new Participant
+        {
+            Id = id,
+            Name = name,
+            Color = color
+        };
+
+        var output = await Cosmic.RunCommand(p, message);
+        if (output != null) await cl.SendChat(output).ConfigureAwait(false);
     }
     catch (Exception e)
     {
@@ -71,8 +86,11 @@ cl.On("ch", async void (msg) =>
     {
         var id = msg["ch"]?["_id"]?.ToString();
         if (id == null) return;
-        
-        if (lastConnected != id)Console.WriteLine("Connected to channel " + id);
+
+        if (lastConnected != id)
+        {
+            Console.WriteLine("Connected to channel " + id);
+        }
         lastConnected = id;
         //await cl.SendChat("test").ConfigureAwait(false);
     }
